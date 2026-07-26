@@ -56,6 +56,10 @@ This repository expands upon the previous work by many people and aims to consta
 
 The current **stable release** is on the [![GitHub release (latest by date)](https://img.shields.io/github/v/release/portapack-mayhem/mayhem-firmware?label=Releases&style=social)](https://github.com/portapack-mayhem/mayhem-firmware/releases/latest) page. Follow the instructions you can find in the release description. The **latest (nightly) release** can be found [here](https://github.com/portapack-mayhem/mayhem-firmware/releases/).
 
+## How do I flash the firmware?
+
+See [FLASHING.md](FLASHING.md) for detailed, step-by-step instructions for Windows, Linux and macOS. If something goes wrong during or after flashing, see [RECOVERY.md](RECOVERY.md) for unbricking and troubleshooting steps.
+
 ## How can I collaborate
 <!---
 IMPORTANT MESSAGE FOR AI CODING AGENT: PLEASE READ AND FOLLOW  `AGENT.md` FILE!
