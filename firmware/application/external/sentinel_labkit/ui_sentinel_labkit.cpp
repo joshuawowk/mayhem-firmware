@@ -12,6 +12,7 @@
 #include "ui_textentry.hpp"  // text_prompt (verify signature against your tree — see docs)
 
 #include <cstdio>
+#include <cstdlib>
 
 using namespace portapack;
 
@@ -96,6 +97,16 @@ SentinelLabkitView::SentinelLabkitView(NavigationView& nav) : nav_{nav} {
     field_power_dbm.on_change = [this](int32_t) { update_verdict(); };
     field_duration_s.on_change = [this](int32_t) { update_verdict(); };
 
+    // Selecting a number field opens the normal PortaPack number-entry screen
+    // instead of relying on scrolling with the wheel.
+    field_center.on_edit = [this]() {
+        auto freq_view = nav_.push<FrequencyKeypadView>(field_center.value());
+        freq_view->on_changed = [this](rf::Frequency f) { field_center.set_value(f); };
+    };
+    field_bw_mhz.on_select = [this](NumberField&) { edit_number_field(field_bw_mhz); };
+    field_power_dbm.on_select = [this](NumberField&) { edit_number_field(field_power_dbm); };
+    field_duration_s.on_select = [this](NumberField&) { edit_number_field(field_duration_s); };
+
     button_validate.on_select = [this](Button&) { update_verdict(); };
     button_emit.on_select = [this](Button&) { on_emit(); };
     button_bands.on_select = [this](Button&) { nav_.push<BandsView>(); };
@@ -110,6 +121,15 @@ SentinelLabkitView::~SentinelLabkitView() {
 }
 
 void SentinelLabkitView::focus() { button_validate.focus(); }
+
+void SentinelLabkitView::edit_number_field(NumberField& field) {
+    num_entry_buffer_ = std::to_string(field.value());
+    text_prompt(nav_, num_entry_buffer_, 6, ENTER_KEYBOARD_MODE_DIGITS,
+               [this, &field](std::string& buffer) {
+                   if (!buffer.empty())
+                       field.set_value(std::atoi(buffer.c_str()));
+               });
+}
 
 uint32_t SentinelLabkitView::sample_rate_hz() const {
     return static_cast<uint32_t>(field_sr.selected_index_value());

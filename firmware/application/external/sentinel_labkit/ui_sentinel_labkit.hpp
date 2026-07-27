@@ -57,8 +57,10 @@ class BandsView : public View {
 
    private:
     NavigationView& nav_;
-    Console console{{0, 0, 240, 288}};
-    Button button_done{{80, 292, 80, 24}, "Done"};
+    // Content area below the top status bar is 304px tall; leave headroom above
+    // that so button_done isn't drawn under the system info bar (illegible).
+    Console console{{0, 0, 240, 272}};
+    Button button_done{{80, 276, 80, 24}, "Done"};
 };
 
 // --- Operator attestation (arms real emission) --------------------------------------
@@ -118,6 +120,11 @@ class SentinelLabkitView : public View {
     void configure_baseband_for_waveform();
     void on_tx_progress(uint32_t progress, bool done);
 
+    // Opens the shared numeric keypad/keyboard entry screen for a NumberField,
+    // matching how PortaPack apps let you type a value instead of scrolling to it.
+    std::string num_entry_buffer_{};
+    void edit_number_field(NumberField& field);
+
     // -- widgets --
     Labels labels{
         {{0, 0 * 16}, "Waveform:", Theme::getInstance()->fg_light->foreground},
@@ -147,13 +154,16 @@ class SentinelLabkitView : public View {
     Checkbox checkbox_arm{{0, 5 * 16}, 6, "Arm TX", false};
     Checkbox checkbox_owned{{12 * 8, 5 * 16}, 8, "Owned tgt", false};
 
-    Console console{{0, 7 * 16, 240, 160}};
+    // Content area below the top status bar is 304px tall; the previous rows
+    // (console to 272, buttons at 18*16/20*16) ran past that boundary and were
+    // drawn underneath the system info bar, which is why they were illegible.
+    Console console{{0, 7 * 16, 240, 8 * 16}};
 
-    Button button_validate{{0, 18 * 16, 112, 28}, "Validate"};
-    Button button_emit{{120, 18 * 16, 112, 28}, "EMIT"};
+    Button button_validate{{0, 15 * 16, 112, 28}, "Validate"};
+    Button button_emit{{120, 15 * 16, 112, 28}, "EMIT"};
 
-    Button button_bands{{0, 20 * 16, 112, 24}, "GNSS/Bands"};
-    Button button_attest{{120, 20 * 16, 112, 24}, "Attestation"};
+    Button button_bands{{0, 17 * 16, 112, 24}, "GNSS/Bands"};
+    Button button_attest{{120, 17 * 16, 112, 24}, "Attestation"};
 
     MessageHandlerRegistration message_handler_tx_progress{
         Message::ID::TXProgress,
