@@ -404,7 +404,7 @@ GlassView::GlassView(
                   &freq_stats, &button_play});
 
     load_presets();  // Load available presets from TXT files (or default).
-    preset_index = clip<uint8_t>(preset_index, 0, presets_db.size());
+    preset_index = clip<uint8_t>(preset_index, 0, presets_db.size() - 1);
 
     field_frequency_min.set_value(f_min / MHZ_DIV);
     field_frequency_min.on_change = [this](int32_t v) {
