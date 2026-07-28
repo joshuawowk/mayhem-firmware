@@ -143,6 +143,8 @@ constexpr image_tag_t image_tag_hackrf{'H', 'R', 'F', '1'};
 constexpr image_tag_t image_tag_signal_hunter{'H', 'U', 'N', 'T'};
 
 struct chunk_t {
+    static constexpr uint32_t header_size = 12;
+
     const image_tag_t tag;
     const uint32_t length;
     const uint32_t compressed_data_size;
@@ -150,6 +152,35 @@ struct chunk_t {
 
     const chunk_t* next() const {
         return reinterpret_cast<const chunk_t*>(&data[length]);
+    }
+
+    /* The header is only safe to read if it is word-aligned and lies wholly
+     * inside the images region. `tag` is compared byte-wise so it survives a
+     * misaligned pointer, but `length` is a word load and an unaligned word
+     * load hard-faults on the M0.
+     */
+    bool header_readable(const uint32_t region_end) const {
+        const auto self = reinterpret_cast<uint32_t>(this);
+        return ((self & 3) == 0) && (self <= region_end) && (region_end - self >= header_size);
+    }
+
+    /* Erased SPI flash reads back as 0xFF. That satisfies the "tag is non-zero"
+     * end-of-list test and yields length == 0xFFFFFFFF; adding the 12-byte
+     * header then wraps to 11, so next() advances by 11 bytes and lands
+     * unaligned, and the following word load of `length` hard-faults. An
+     * incompletely written flash image therefore crashed instead of reporting a
+     * missing image. Reject implausible headers so the walk stops instead.
+     *
+     * Every image in the chunk list is word-padded, so a length that is zero or
+     * not a multiple of 4 cannot be genuine.
+     */
+    bool valid_within(const uint32_t region_end) const {
+        if (!header_readable(region_end))
+            return false;
+        if ((length == 0) || ((length & 3) != 0))
+            return false;
+        const auto self = reinterpret_cast<uint32_t>(this);
+        return length <= (region_end - self - header_size);
     }
 };
 
