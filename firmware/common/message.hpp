@@ -170,6 +170,7 @@ class Message {
         HunterStop = 112,
         TetraBsch = 113,
         TetraDnb = 114,
+        GsmBurst = 115,
         MAX
     };
 
@@ -2052,5 +2053,38 @@ struct TetraDnbMessage : public Message {
 
     // 432 TCH type-5 bits: 216 bits before the training sequence + 216 bits after.
     std::array<uint8_t, 54> payload;
+};
+
+// GSM downlink burst handed from the proc_gsm (M4) demod to the gsm_rx app (M0). The M4 does
+// GMSK demod + FCCH/SCH acquisition + TS0 51-multiframe framing and emits RAW channel-coded
+// hard bits; all FEC + L3 runs on the M0 (host-testable gsm_channel/gsm_l3 cores).
+//   burst_type: 0 = Normal (114 data bits: two 57-bit halves), 1 = SCH (78 coded bits),
+//               2 = FCCH marker (payload unused, signals frequency-burst lock)
+struct GsmBurstMessage : public Message {
+    constexpr GsmBurstMessage(
+        const uint8_t* bits,   // up to 15 bytes (114 or 78 bits, MSB-first)
+        uint8_t type,
+        uint8_t mf_frame_,     // 0..50 within the 51-multiframe (frame 0 == FCCH)
+        uint8_t tsc_,          // training-sequence / BSIC-BCC index for Normal bursts
+        uint8_t err,           // sync/midamble hamming distance
+        bool inv)
+        : Message(Message::ID::GsmBurst),
+          burst_type(type),
+          mf_frame(mf_frame_),
+          tsc(tsc_),
+          errors(err),
+          inverted(inv),
+          payload{} {
+        for (size_t i = 0; i < 15; i++)
+            payload[i] = bits[i];
+    }
+
+    uint8_t burst_type;
+    uint8_t mf_frame;
+    uint8_t tsc;
+    uint8_t errors;
+    bool inverted;
+
+    std::array<uint8_t, 15> payload;
 };
 #endif /*__MESSAGE_H__*/
