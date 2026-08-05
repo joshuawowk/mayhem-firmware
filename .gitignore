@@ -84,3 +84,7 @@ venv/
 # TODO: generate bitmap during build, since we use python during build anyway, lemme know if this is a bad idea @zxkmm
 /firmware/tools/bitmap.hpp
 tmp/*
+
+
+# Docker environment files
+.env
