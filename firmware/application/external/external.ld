@@ -116,6 +116,8 @@ MEMORY
     ram_external_app_signal_hunter         (rwx) : org = 0xAE0B0000, len = 32k
     ram_external_app_tetra_rx              (rwx) : org = 0xAE0C0000, len = 32k
     ram_external_app_sentinel_labkit       (rwx) : org = 0xAE0D0000, len = 32k
+    ram_external_app_sentinel_detect       (rwx) : org = 0xAE0E0000, len = 32k
+    ram_external_app_gsm_rx                 (rwx) : org = 0xAE0F0000, len = 32k
 }
 
 SECTIONS
@@ -677,6 +679,18 @@ SECTIONS
         KEEP(*(.external_app.app_sentinel_labkit.application_information));
         *(*ui*external_app*sentinel_labkit*);
     } > ram_external_app_sentinel_labkit
+
+    .external_app_sentinel_detect : ALIGN(4) SUBALIGN(4)
+    {
+        KEEP(*(.external_app.app_sentinel_detect.application_information));
+        *(*ui*external_app*sentinel_detect*);
+    } > ram_external_app_sentinel_detect
+
+    .external_app_gsm_rx : ALIGN(4) SUBALIGN(4)
+    {
+        KEEP(*(.external_app.app_gsm_rx.application_information));
+        *(*ui*external_app*gsm_rx*);
+    } > ram_external_app_gsm_rx
 
 
 

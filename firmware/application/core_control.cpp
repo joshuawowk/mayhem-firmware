@@ -33,8 +33,30 @@ using namespace lpc43xx;
 using namespace portapack;
 
 void m4_init(const spi_flash::image_tag_t image_tag, const memory::region_t to, const bool full_reset) {
+    const uint32_t images_end = reinterpret_cast<uint32_t>(spi_flash::images.base()) + spi_flash::images.size;
+
+    /* A short-written or otherwise damaged flash image leaves erased (0xFF) bytes
+     * where the chunk list should continue. Walking that unchecked wraps the chunk
+     * pointer to an unaligned address and hard-faults on the next word load of
+     * `length`, so validate each header and stop with a diagnosable panic instead.
+     */
+    bool image_damaged = false;
+
     const spi_flash::chunk_t* chunk = reinterpret_cast<const spi_flash::chunk_t*>(spi_flash::images.base());
-    while (chunk->tag) {
+    while (true) {
+        if (!chunk->header_readable(images_end)) {
+            image_damaged = true;
+            break;
+        }
+
+        if (!chunk->tag)
+            break; /* clean end of list: this image just isn't present */
+
+        if (!chunk->valid_within(images_end)) {
+            image_damaged = true;
+            break;
+        }
+
         if (chunk->tag == image_tag) {
             const void* src = &chunk->data[0];
             void* dst = reinterpret_cast<void*>(to.base());
@@ -56,7 +78,10 @@ void m4_init(const spi_flash::image_tag_t image_tag, const memory::region_t to, 
         chunk = chunk->next();
     }
 
-    chDbgPanic("NoImg");
+    /* "BadFwImage" means the chunk list itself is damaged and the firmware needs
+     * re-flashing; "NoImg" means the list is intact but has no such image.
+     */
+    chDbgPanic(image_damaged ? "BadFwImage" : "NoImg");
 }
 
 void m4_init_prepared(const uint32_t m4_code, const bool full_reset) {

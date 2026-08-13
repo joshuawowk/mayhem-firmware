@@ -34,6 +34,27 @@ namespace ui::external_app::sentinel_labkit {
 
 namespace core = ::sentinel_labkit;
 
+/* A pushed view gets the whole navigation area: the 320px screen minus the 16px
+ * top status bar = 304px. The 16px system info bar at the bottom belongs to the
+ * root menu only — NavigationView::update_view() reserves space for it just when
+ * is_top(), and SystemView drops it as a child as soon as anything is pushed
+ * (ui_navigation.cpp). So an app view owns all 304px, and widgets laid out past
+ * that are simply clipped, which is what truncated this app's bottom button rows.
+ * Like the rest of the app's layout this assumes the standard 240x320 display.
+ */
+constexpr int usable_height = 304;
+
+/* Bottom rows are positioned via these so the static_asserts below actually
+ * guard the layout instead of a comment claiming it fits.
+ */
+constexpr int row_actions_y = 228;  // Validate / EMIT
+constexpr int row_actions_h = 28;
+constexpr int row_nav_y = 260;  // GNSS-Bands / Attestation
+constexpr int row_nav_h = 24;
+
+static_assert(row_actions_y + row_actions_h <= row_nav_y, "action row overlaps the nav row");
+static_assert(row_nav_y + row_nav_h <= usable_height, "bottom button row is clipped off-screen");
+
 // Shared, app-scoped attestation state (operator id + affirmation). One instance lives
 // in the root view; AttestView edits it by reference.
 struct AttestState {
@@ -57,8 +78,8 @@ class BandsView : public View {
 
    private:
     NavigationView& nav_;
-    Console console{{0, 0, 240, 288}};
-    Button button_done{{80, 292, 80, 24}, "Done"};
+    Console console{{0, 0, 240, 252}};
+    Button button_done{{80, row_nav_y, 80, row_nav_h}, "Done"};
 };
 
 // --- Operator attestation (arms real emission) --------------------------------------
@@ -82,7 +103,7 @@ class AttestView : public View {
     Button button_set_op{{0, 4 * 16, 120, 24}, "Set operator"};
 
     Checkbox checkbox_affirm{{0, 11 * 16}, 20, "I affirm (see docs)"};
-    Button button_done{{80, 17 * 16, 80, 24}, "Done"};
+    Button button_done{{80, row_nav_y, 80, row_nav_h}, "Done"};
 
     void refresh();
 };
@@ -118,6 +139,14 @@ class SentinelLabkitView : public View {
     void configure_baseband_for_waveform();
     void on_tx_progress(uint32_t progress, bool done);
 
+    /* Selecting a number field opens the shared digit-entry screen instead of
+     * making the operator scroll the wheel through the whole range. text_prompt
+     * holds `str` by reference until the view is dismissed, so the buffer has to
+     * outlive the call — hence a member rather than a local.
+     */
+    std::string num_entry_buffer_{};
+    void edit_number_field(NumberField& field);
+
     // -- widgets --
     Labels labels{
         {{0, 0 * 16}, "Waveform:", Theme::getInstance()->fg_light->foreground},
@@ -147,13 +176,13 @@ class SentinelLabkitView : public View {
     Checkbox checkbox_arm{{0, 5 * 16}, 6, "Arm TX", false};
     Checkbox checkbox_owned{{12 * 8, 5 * 16}, 8, "Owned tgt", false};
 
-    Console console{{0, 7 * 16, 240, 160}};
+    Console console{{0, 6 * 16, 240, 128}};  // 96..224
 
-    Button button_validate{{0, 18 * 16, 112, 28}, "Validate"};
-    Button button_emit{{120, 18 * 16, 112, 28}, "EMIT"};
+    Button button_validate{{0, row_actions_y, 112, row_actions_h}, "Validate"};
+    Button button_emit{{120, row_actions_y, 112, row_actions_h}, "EMIT"};
 
-    Button button_bands{{0, 20 * 16, 112, 24}, "GNSS/Bands"};
-    Button button_attest{{120, 20 * 16, 112, 24}, "Attestation"};
+    Button button_bands{{0, row_nav_y, 112, row_nav_h}, "GNSS/Bands"};
+    Button button_attest{{120, row_nav_y, 112, row_nav_h}, "Attestation"};
 
     MessageHandlerRegistration message_handler_tx_progress{
         Message::ID::TXProgress,

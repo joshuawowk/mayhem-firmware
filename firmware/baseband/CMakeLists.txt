@@ -485,6 +485,11 @@ set(MODE_CPPSRC
 )
 DeclareTargets(PWFM wfm_audio)
 
+# Build the large Flipper-ported decoder basebands at -Os instead of -O3. They are packet
+# decoders (not sample-rate-critical DSP), so -Os is fine, and it reclaims several KB so the
+# full image (weather + subghzd + sentinel_detect) fits the 1 MB flash.
+set(MODE_FLAGS "-Os")
+
 ### SubGhz Decoders
 
 set(MODE_CPPSRC
