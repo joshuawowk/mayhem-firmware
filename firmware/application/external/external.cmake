@@ -395,6 +395,16 @@ set(EXTCPPSRC
 	external/sentinel_labkit/main.cpp
 	external/sentinel_labkit/ui_sentinel_labkit.cpp
 
+	#sentinel_detect - RX-only passive drone-band detector (SentinelRF Detector port)
+	external/sentinel_detect/main.cpp
+	external/sentinel_detect/ui_sentinel_detect.cpp
+
+	#gsm_rx - GSM downlink IMSI-catcher (Oros42 IMSI-catcher port)
+	# dropped from THIS firmware to fit 1 MB alongside weather+subghzd+sentinel_detect
+	# (source + shared-header changes preserved; git stash pop + uncomment to restore)
+	# external/gsm_rx/main.cpp
+	# external/gsm_rx/ui_gsm_rx.cpp
+
 )
 
 set(EXTAPPLIST
@@ -490,6 +500,8 @@ set(EXTAPPLIST
   signal_hunter
 	tetra_rx
 	sentinel_labkit
+	sentinel_detect
+	# gsm_rx   # dropped to fit 1 MB (see note above; restore with git stash pop + uncomment)
 )
 
 # sdusb has type conflicts with PRALINE (HackRF Pro) - add only for non-PRALINE builds

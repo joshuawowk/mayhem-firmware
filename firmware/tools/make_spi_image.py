@@ -244,6 +244,44 @@ pad_size = spi_size - 4 - len(spi_image)
 for i in range(pad_size):
     spi_image += spi_image_default_byte
 
+########verify the baseband chunk list the firmware will walk########
+
+# m4_init() in firmware/application/core_control.cpp walks this list starting at
+# &_textend, which is exactly the end of the application image. It advances by
+# (12 + length) per chunk and stops on an all-zero tag. A chunk whose length is
+# not a positive multiple of 4, or a list that runs past the images region
+# without a terminator, makes that walk land on an unaligned address and hard
+# fault on the device. Catch it here rather than on the bench.
+def verify_chunk_list(image, list_start, region_end):
+    offset = list_start
+    tags = []
+    while True:
+        if offset % 4 != 0:
+            raise RuntimeError('baseband chunk list: unaligned chunk header at offset 0x%x' % offset)
+        if offset + 12 > region_end:
+            raise RuntimeError('baseband chunk list: ran past the images region at offset 0x%x '
+                               'without an end-of-list terminator' % offset)
+        tag = image[offset:offset + 4]
+        if tag == b'\x00\x00\x00\x00':
+            return tags, offset
+        length = int.from_bytes(image[offset + 4:offset + 8], byteorder='little')
+        if length == 0 or (length % 4) != 0:
+            raise RuntimeError('baseband chunk list: chunk %r at offset 0x%x has invalid length %d '
+                               '(must be a positive multiple of 4)' % (tag, offset, length))
+        if length > region_end - offset - 12:
+            raise RuntimeError('baseband chunk list: chunk %r at offset 0x%x overruns the images '
+                               'region (length %d)' % (tag, offset, length))
+        tags.append(tag.decode('ascii', 'replace'))
+        offset += 12 + length
+
+chunk_tags, terminator_offset = verify_chunk_list(spi_image, len(application_image), spi_size - 4)
+print("Baseband chunk list OK:", len(chunk_tags), "images,",
+      "terminator at 0x%x" % terminator_offset)
+print("Baseband images:", " ".join(chunk_tags))
+
+#^^^^^^^^verify the baseband chunk list the firmware will walk^^^^^^^^
+
+
 # quick "add up the words" checksum, and check for possible references to code in external apps
 checksum = 0
 for i in range(0, len(spi_image), 4):
@@ -263,6 +301,24 @@ write_image(spi_image, output_path)
 
 percent_remaining = round(1000 * pad_size / spi_size) / 10;
 print("Space remaining in flash ROM:", pad_size, "bytes (", percent_remaining, "%)")
+
+# A near-full image is how you end up with a truncated flash write that leaves the
+# baseband chunk list running into erased (0xFF) bytes -- see the walk in
+# firmware/application/core_control.cpp. Warn loudly rather than failing, so a tight
+# image can still be shipped deliberately.
+minimum_free_bytes = 32 * 1024
+if pad_size < minimum_free_bytes:
+    print("")
+    print("*" * 78)
+    print("WARNING: only %d bytes (%s%%) of SPI flash are free; %d bytes is the" % (
+        pad_size, percent_remaining, minimum_free_bytes))
+    print("         recommended minimum. To reclaim space, move an app out to the SD card")
+    print("         as an external app (add_to_firmware in firmware/baseband/CMakeLists.txt).")
+    print("         Note that only apps whose code plus *uncompressed* baseband image fit in")
+    print("         32 KiB can be moved: both are loaded contiguously into the m4_code region,")
+    print("         so a large baseband rules the app out however small its UI is.")
+    print("*" * 78)
+    print("")
 
 
 #^^^^^^^^check if the fw size ok and check external addr leak^^^^^^^^

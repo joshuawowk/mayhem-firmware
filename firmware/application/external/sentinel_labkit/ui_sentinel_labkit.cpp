@@ -12,6 +12,7 @@
 #include "ui_textentry.hpp"  // text_prompt (verify signature against your tree — see docs)
 
 #include <cstdio>
+#include <cstdlib>
 
 using namespace portapack;
 
@@ -96,6 +97,15 @@ SentinelLabkitView::SentinelLabkitView(NavigationView& nav) : nav_{nav} {
     field_power_dbm.on_change = [this](int32_t) { update_verdict(); };
     field_duration_s.on_change = [this](int32_t) { update_verdict(); };
 
+    // Number fields open the standard entry screens rather than wheel-scrolling.
+    field_center.on_edit = [this]() {
+        auto keypad = nav_.push<FrequencyKeypadView>(field_center.value());
+        keypad->on_changed = [this](rf::Frequency f) { field_center.set_value(f); };
+    };
+    field_bw_mhz.on_select = [this](NumberField& f) { edit_number_field(f); };
+    field_power_dbm.on_select = [this](NumberField& f) { edit_number_field(f); };
+    field_duration_s.on_select = [this](NumberField& f) { edit_number_field(f); };
+
     button_validate.on_select = [this](Button&) { update_verdict(); };
     button_emit.on_select = [this](Button&) { on_emit(); };
     button_bands.on_select = [this](Button&) { nav_.push<BandsView>(); };
@@ -110,6 +120,17 @@ SentinelLabkitView::~SentinelLabkitView() {
 }
 
 void SentinelLabkitView::focus() { button_validate.focus(); }
+
+void SentinelLabkitView::edit_number_field(NumberField& field) {
+    num_entry_buffer_ = std::to_string(field.value());
+    // The digit keyboard includes '-', so negative ranges (Pwr dBm) still work.
+    // set_value() clamps to the field's range, so out-of-range entry is safe.
+    text_prompt(nav_, num_entry_buffer_, 4, ENTER_KEYBOARD_MODE_DIGITS,
+                [&field](std::string& buffer) {
+                    if (!buffer.empty())
+                        field.set_value(std::strtol(buffer.c_str(), nullptr, 10));
+                });
+}
 
 uint32_t SentinelLabkitView::sample_rate_hz() const {
     return static_cast<uint32_t>(field_sr.selected_index_value());
